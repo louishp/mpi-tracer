@@ -16,6 +16,7 @@
 #include <stdbool.h> 
 #include <pthread.h> 
 #include <sys/time.h>
+#include <sys/syscall.h>
 #include "util.h"
 #include <dlfcn.h>
 #include "mpitracer.h"
@@ -107,6 +108,7 @@ static Timer timer_fn=gettimeofday_timer;
 
 static inline void print_log(FILE* fp,trace_log_t* log);
 
+uint32_t init_pid = 0;
 
 void Ignore_all_fn(){
     int i;
@@ -126,6 +128,7 @@ static MPI_Comm pMPI_comm_world=NULL;
 static MPI_Datatype myInt=NULL;
 static MPI_Datatype myChar=NULL;
 
+static inline uint32_t GetPid() { return syscall(__NR_getpid); }
 
 static int inline rank2global(int rank,MPI_Comm comm){
     group_node_t* g;
@@ -240,6 +243,7 @@ void* log_writer_thread(){
     }
     sprintf(log_file,"%s/%s_%d.log",log_dir,log_prefix,tracer_rank);
     fp=fopen(log_file,"w");
+    fprintf( fp, "%lf\t%lu\n", rank_start_ts, init_pid);
     fprintf( fp, "%9s %25s %11s %9s %10s %8s %7s %7s %7s %7s %7s %9s %8s %8s %7s %9s %8s %8s %7s\n","ID","MPI_TYPE","TimeStamp","Call","Elapse","Comm","Tag","SRC","DST","GSRC","GDST","SCount","SBuf_B","SLen_B","SBW_Gbps","RCount","RBuf_B","RLen_B","RBW_Gbps");
     while(1){
         offset = trace_index%max_trace_num;
@@ -297,6 +301,7 @@ void init_mpitracer(){
     init_pool(&group_pool,group_node_t,DEFAULT_GROUP_SIZE,init_group);
     init_htable(request_htable);
     init_htable(group_htable);
+    init_pid = GetPid();
     env=getenv("MPITRACER_MPI");
     if(env){
         if(strcmp(env,"openmpi")==0){
@@ -666,7 +671,7 @@ void record_statistic(pair_log_t* pairs,int count,char* table){
     pair_log_t* pair=NULL;
     tm_start = localtime(&app_start_time);
     strftime(starttime,16,"%m%d%H%M%S",tm_start);
-    sprintf(reducer_log_file,"/var/log/mpi_trace_task_%s.log",starttime);
+    sprintf(reducer_log_file,"/tmp/mpi_trace_task_%s.log",starttime);
     MPI_Get_processor_name(root_hostname,&len);
     fp=fopen(reducer_log_file,"w");
     fprintf(fp,"%16s\t%7s\t%16s\t%7s\t%11s\t%11s\t%16s\t%16s\t%8s\t%8s\t%8s\t%7s\t%7s\t%7s\t%7s\n","SHost","SRC","DHost","DST","Start","Elapse","TotalCount","TotalBytes","Max_msg","Min_msg","Avg_msg","Max_bw","Min_bw","Avg_bw","Bw_mean");
@@ -761,6 +766,7 @@ int MPI_Finalize(){
     }else{
         sprintf(log_file,"%s/%s_%d.log",log_dir,log_prefix,tracer_rank);
         fp=fopen(log_file,"w");
+        fprintf( fp, "%lf\t%lu\n", rank_start_ts, init_pid);
         fprintf( fp, "%9s %25s %11s %9s %10s %10s %7s %7s %7s %7s %7s %9s %8s %8s %7s %9s %8s %8s %7s\n","ID","MPI_TYPE","TimeStamp","Call","Elapse","Comm","Tag","SRC","DST","GSRC","GDST","SCount","SBuf_B","SLen_B","SBW_Gbps","RCount","RBuf_B","RLen_B","RBW_Gbps");
         offset = trace_index%max_trace_num;
         for(i=offset;i<max_trace_num;i++){
