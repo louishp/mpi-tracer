@@ -108,7 +108,7 @@ static Timer timer_fn=gettimeofday_timer;
 
 static inline void print_log(FILE* fp,trace_log_t* log);
 
-uint32_t init_pid = 0;
+u_int32_t init_pid = 0;
 
 void Ignore_all_fn(){
     int i;
@@ -128,7 +128,7 @@ static MPI_Comm pMPI_comm_world=NULL;
 static MPI_Datatype myInt=NULL;
 static MPI_Datatype myChar=NULL;
 
-static inline uint32_t GetPid() { return syscall(__NR_getpid); }
+static inline u_int32_t GetPid() { return syscall(__NR_getpid); }
 
 static int inline rank2global(int rank,MPI_Comm comm){
     group_node_t* g;
@@ -243,7 +243,7 @@ void* log_writer_thread(){
     }
     sprintf(log_file,"%s/%s_%d.log",log_dir,log_prefix,tracer_rank);
     fp=fopen(log_file,"w");
-    fprintf( fp, "%lf\t%lu\n", rank_start_ts, init_pid);
+    fprintf( fp, "%lf\t%u\n", rank_start_ts, init_pid);
     fprintf( fp, "%9s %25s %11s %9s %10s %8s %7s %7s %7s %7s %7s %9s %8s %8s %7s %9s %8s %8s %7s\n","ID","MPI_TYPE","TimeStamp","Call","Elapse","Comm","Tag","SRC","DST","GSRC","GDST","SCount","SBuf_B","SLen_B","SBW_Gbps","RCount","RBuf_B","RLen_B","RBW_Gbps");
     while(1){
         offset = trace_index%max_trace_num;
@@ -766,7 +766,7 @@ int MPI_Finalize(){
     }else{
         sprintf(log_file,"%s/%s_%d.log",log_dir,log_prefix,tracer_rank);
         fp=fopen(log_file,"w");
-        fprintf( fp, "%lf\t%lu\n", rank_start_ts, init_pid);
+        fprintf( fp, "%lf\t%u\n", rank_start_ts, init_pid);
         fprintf( fp, "%9s %25s %11s %9s %10s %10s %7s %7s %7s %7s %7s %9s %8s %8s %7s %9s %8s %8s %7s\n","ID","MPI_TYPE","TimeStamp","Call","Elapse","Comm","Tag","SRC","DST","GSRC","GDST","SCount","SBuf_B","SLen_B","SBW_Gbps","RCount","RBuf_B","RLen_B","RBW_Gbps");
         offset = trace_index%max_trace_num;
         for(i=offset;i<max_trace_num;i++){
